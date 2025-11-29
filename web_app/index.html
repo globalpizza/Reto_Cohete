@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Cohete de Agua - Antigravity</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>🚀 WaterRocket<span class="accent">Sim</span></h1>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label>Presión Inicial (psi)</label>
+                    <input type="range" id="p_psi" min="20" max="150" value="70" step="1">
+                    <span class="value-display" id="val_p_psi">70 psi</span>
+                </div>
+
+                <div class="control-group">
+                    <label>Volumen Agua (L)</label>
+                    <input type="range" id="v_water" min="0.1" max="1.5" value="0.5" step="0.1">
+                    <span class="value-display" id="val_v_water">0.5 L</span>
+                </div>
+
+                <div class="control-group">
+                    <label>Masa Cohete (g)</label>
+                    <input type="range" id="m_rocket" min="20" max="200" value="55" step="5">
+                    <span class="value-display" id="val_m_rocket">55 g</span>
+                </div>
+
+                <div class="control-group">
+                    <label>Coef. Arrastre (Cd)</label>
+                    <input type="range" id="cd" min="0.1" max="1.5" value="0.75" step="0.05">
+                    <span class="value-display" id="val_cd">0.75</span>
+                </div>
+                
+                <div class="control-group">
+                     <label>Boquilla (cm²)</label>
+                     <input type="range" id="a_nozzle" min="1.0" max="10.0" value="4.5" step="0.5">
+                     <span class="value-display" id="val_a_nozzle">4.5 cm²</span>
+                </div>
+
+                <button id="btn-launch" class="btn-primary">LANZAR 🚀</button>
+                <button id="btn-reset" class="btn-secondary">REINICIAR ↺</button>
+            </div>
+
+            <div class="stats-panel">
+                <h3>Estadísticas en Vivo</h3>
+                <div class="stat-row">
+                    <span>Fase:</span>
+                    <span id="stat-phase" class="stat-value phase-ready">Listo</span>
+                </div>
+                <div class="stat-row">
+                    <span>Altura:</span>
+                    <span id="stat-height" class="stat-value">0.0 m</span>
+                </div>
+                <div class="stat-row">
+                    <span>Velocidad:</span>
+                    <span id="stat-velocity" class="stat-value">0.0 km/h</span>
+                </div>
+                <div class="stat-row">
+                    <span>Agua Restante:</span>
+                    <span id="stat-water" class="stat-value">100%</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Visualization Area -->
+        <main class="viewport">
+            <canvas id="simCanvas"></canvas>
+            <div class="overlay-info">
+                <div class="max-values">
+                    <p>Max Altura: <span id="max-height">0.0</span> m</p>
+                    <p>Max Velocidad: <span id="max-speed">0.0</span> km/h</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="simulation.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
