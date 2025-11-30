@@ -47,84 +47,96 @@ def calculate_approx_tsiolkovsky(df, u_e_avg):
     return t_water, v_approx
 
 def plot_results(df_results):
-    """Genera las gráficas de V, P, M, y la Trayectoria (conceptual 3D)."""
+    """Genera las gráficas para trayectoria 2D del cohete."""
     
-    # --- Cálculo de u_e Promedio para Tsiolkovsky (Aproximación Pedagógica) ---
-    # Para el cálculo de la aproximación 2, necesitamos un u_e promedio o constante.
-    # El cálculo de u_e inicial es suficiente para esta comparación pedagógica simple.
-    P_i = PARAMS['P_i_abs']
-    A_r = PARAMS['A_r']
-    A_e = PARAMS['A_e']
+    # --- 1. Trayectoria 2D (X vs Y) ---
+    plt.figure(figsize=(12, 8))
     
-    # u_e constante de la Aprox. 2 (Presión constante) [1]
-    # Nota: Si P_i es muy bajo, esto podría dar error, pero asumimos condiciones normales.
-    term_p = 2 * A_r**2 * (P_i - P_ATM) / (RHO_W * (A_r**2 - A_e**2))
-    if term_p < 0: term_p = 0
-    u_e_approx = np.sqrt(term_p)
-    
-    t_approx, v_approx_tsiol = calculate_approx_tsiolkovsky(df_results, u_e_approx)
+    colors = {'Launch Tube': 'purple', 'Water': 'blue', 'Air': 'red', 'Ballistic': 'gray', 'Landed': 'green'}
+    for phase, group in df_results.groupby('Phase'):
+        plt.plot(group['X_Position'], group['Y_Position'], 
+                label=phase, color=colors.get(phase, 'black'), linewidth=2)
 
+    plt.axhline(y=0, color='green', linestyle='-', linewidth=3, alpha=0.5, label='Suelo')
+    plt.xlabel('Alcance Horizontal (m)', fontsize=12)
+    plt.ylabel('Altura (m)', fontsize=12)
+    plt.title('Trayectoria 2D del Cohete de Agua', fontsize=14, fontweight='bold')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.savefig('trajectory_2d.png', dpi=150)
     
-    # --- 1. Gráficas de Serie de Tiempo (2D) ---
-    fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+    # --- 2. Gráficas de Serie de Tiempo ---
+    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
     
-    # Gráfico 1: Velocidad vs. Tiempo (Comparación Pedagógica)
-    axes[0].plot(df_results['Time'], df_results['Velocity'], label='Velocidad Exacta (Euler, Fd+g)', color='blue', linewidth=2)
-    if len(t_approx) > 0:
-        axes[0].plot(t_approx, v_approx_tsiol, label='Aproximación 2 (Tsiolkovsky, P constante)', color='red', linestyle='--', linewidth=1.5)
-    axes[0].set_ylabel('Velocidad (m/s)')
-    axes[0].set_title('Velocidad del Cohete vs. Tiempo (Comparación Modelos)')
-    axes[0].grid(True)
-    axes[0].legend()
+    # Gráfico 1: Posición X vs Tiempo
+    axes[0, 0].plot(df_results['Time'], df_results['X_Position'], color='blue', linewidth=2)
+    axes[0, 0].set_ylabel('Posición X (m)')
+    axes[0, 0].set_title('Alcance Horizontal vs. Tiempo')
+    axes[0, 0].grid(True)
     
-    # Gráfico 2: Presión vs. Tiempo
-    axes[1].plot(df_results['Time'], df_results['Pressure'] / 1000.0, label='Presión (Adiabática)', color='green')
-    axes[1].set_ylabel('Presión (kPa Abs)')
-    axes[1].set_title('Presión Interna de Aire vs. Tiempo')
-    axes[1].grid(True)
+    # Gráfico 2: Posición Y vs Tiempo
+    axes[0, 1].plot(df_results['Time'], df_results['Y_Position'], color='red', linewidth=2)
+    axes[0, 1].set_ylabel('Posición Y (m)')
+    axes[0, 1].set_title('Altura vs. Tiempo')
+    axes[0, 1].grid(True)
     
-    # Gráfico 3: Masa de Agua vs. Tiempo
-    axes[2].plot(df_results['Time'], df_results['Water Mass'] * 1000.0, label='Masa de Agua', color='orange')
-    axes[2].set_ylabel('Masa de Agua (g)')
-    axes[2].set_xlabel('Tiempo (s)')
-    axes[2].set_title('Masa de Agua Expulsada vs. Tiempo')
-    axes[2].grid(True)
+    # Gráfico 3: Velocidad Total vs Tiempo
+    axes[1, 0].plot(df_results['Time'], df_results['Total_Velocity'], color='purple', linewidth=2)
+    axes[1, 0].set_ylabel('Velocidad Total (m/s)')
+    axes[1, 0].set_title('Velocidad vs. Tiempo')
+    axes[1, 0].grid(True)
+    
+    # Gráfico 4: Componentes de Velocidad
+    axes[1, 1].plot(df_results['Time'], df_results['X_Velocity'], label='Vx', color='blue', linewidth=2)
+    axes[1, 1].plot(df_results['Time'], df_results['Y_Velocity'], label='Vy', color='red', linewidth=2)
+    axes[1, 1].set_ylabel('Velocidad (m/s)')
+    axes[1, 1].set_title('Componentes de Velocidad')
+    axes[1, 1].legend()
+    axes[1, 1].grid(True)
+    
+    # Gráfico 5: Presión vs Tiempo
+    axes[2, 0].plot(df_results['Time'], df_results['Pressure'] / 1000.0, color='green', linewidth=2)
+    axes[2, 0].set_ylabel('Presión (kPa Abs)')
+    axes[2, 0].set_xlabel('Tiempo (s)')
+    axes[2, 0].set_title('Presión Interna vs. Tiempo')
+    axes[2, 0].grid(True)
+    
+    # Gráfico 6: Masa de Agua vs Tiempo
+    axes[2, 1].plot(df_results['Time'], df_results['Water Mass'] * 1000.0, color='orange', linewidth=2)
+    axes[2, 1].set_ylabel('Masa de Agua (g)')
+    axes[2, 1].set_xlabel('Tiempo (s)')
+    axes[2, 1].set_title('Masa de Agua vs. Tiempo')
+    axes[2, 1].grid(True)
     
     plt.tight_layout()
-    plt.savefig('results_series.png')
-    # plt.show()
-    
-    # --- 2. Gráfico Conceptual de Trayectoria (3D/2D vertical) ---
-    # Simulación conceptual de la altura para visualizar fases
-    plt.figure(figsize=(8, 6))
-    
-    colors = {'Launch Tube': 'purple', 'Water': 'blue', 'Air': 'red', 'Ballistic': 'gray'}
-    for phase, group in df_results.groupby('Phase'):
-        plt.plot(group['Time'], group['Position'], label=phase, color=colors.get(phase, 'black'), linewidth=2)
-
-    plt.axhline(y=0, color='k', linestyle='-')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Altura (m)')
-    plt.title('Trayectoria Vertical del Cohete por Fases')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('trajectory.png')
-    # plt.show()
+    plt.savefig('results_series_2d.png', dpi=150)
 
     # --- 3. Resultados Numéricos Clave ---
-    v_max = df_results['Velocity'].max()
-    h_max = df_results['Position'].max()
+    max_height = df_results['Y_Position'].max()
+    max_range = df_results['X_Position'].max()
+    v_max = df_results['Total_Velocity'].max()
     
-    # Tiempo de vaciado: cuando la masa de agua llega a ~0
-    # Buscamos el primer instante donde Phase cambia de Water a Air o Ballistic, o Water Mass es 0
+    # Tiempo de vaciado
     empty_indices = df_results[df_results['Water Mass'] <= 1e-4]
     t_v = empty_indices['Time'].iloc[0] if not empty_indices.empty else 0.0
     
     t_flight = df_results['Time'].iloc[-1]
     
-    print("\n--- RESULTADOS NUMÉRICOS CLAVE ---")
-    print(f"Velocidad Máxima Alcanzada: {v_max:.2f} m/s")
-    print(f"Altura Máxima Alcanzada: {h_max:.2f} m")
-    print(f"Tiempo de Vaciado (tv): {t_v:.3f} s")
-    print(f"Tiempo Total de Vuelo: {t_flight:.2f} s")
+    print("\n" + "="*70)
+    print(" "*20 + "RESULTADOS NUMÉRICOS CLAVE")
+    print("="*70)
+    print(f"Altura Máxima Alcanzada:          {max_height:.2f} m")
+    print(f"Alcance Horizontal Máximo:        {max_range:.2f} m")
+    print(f"Velocidad Máxima Alcanzada:       {v_max:.2f} m/s")
+    print(f"Tiempo de Vaciado (tv):           {t_v:.3f} s")
+    print(f"Tiempo Total de Vuelo:            {t_flight:.2f} s")
+    print("="*70)
+    
+    # Calcular ángulo óptimo teórico (45° en vacío)
+    angle_deg = PARAMS['launch_angle_deg']
+    print(f"\n💡 Nota: Con {angle_deg:.1f}°, alcance = {max_range:.2f} m")
+    print(f"   Para máximo alcance, prueba ángulos cercanos a 45°")
+    print("="*70 + "\n")
 # -----------------------------------------------------------------------------

@@ -24,6 +24,7 @@ PARAMS = {
     'A_r_cm2': 95.0,        # Área interna transversal botella (para altura) [cm^2]
     'M_r_g': 55.0,          # Masa seca del cohete [g][1]
     'H_tube_m': 1.0,        # Longitud del tubo de lanzamiento [m]
+    'launch_angle_deg': 45.0,  # Ángulo de lanzamiento [grados] (0=horizontal, 90=vertical)
     'C_D': 0.75,            # Coeficiente de arrastre (editable)
     'A_ref_cm2': 100.0,     # Área de referencia para arrastre (ej: basado en diámetro)
     
@@ -34,7 +35,8 @@ PARAMS = {
     'A_e': 0.0,             # Área de la boquilla [m^2]
     'A_r': 0.0,             # Área interna botella [m^2]
     'M_r': 0.0,             # Masa seca del cohete [kg]
-    'A_ref': 0.0            # Área de referencia para arrastre [m^2]
+    'A_ref': 0.0,           # Área de referencia para arrastre [m^2]
+    'launch_angle_rad': 0.0 # Ángulo de lanzamiento [radianes]
 }
 
 def convert_to_si(p):
@@ -50,6 +52,8 @@ def convert_to_si(p):
     p['A_ref'] = p['A_ref_cm2'] / 10000.0
     # Masa: g a kg
     p['M_r'] = p['M_r_g'] / 1000.0
+    # Ángulo: grados a radianes
+    p['launch_angle_rad'] = np.radians(p['launch_angle_deg'])
     return p
 
 # Inicializa los parámetros en SI para la primera ejecución

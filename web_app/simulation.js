@@ -27,22 +27,26 @@ class RocketSimulation {
       M_r: inputParams.M_r_g / 1000.0,
       H_tube: inputParams.H_tube_m,
       C_D: inputParams.C_D,
-      A_ref: inputParams.A_ref_cm2 / 10000.0
+      A_ref: inputParams.A_ref_cm2 / 10000.0,
+      launch_angle_rad: (inputParams.launch_angle_deg || 45) * Math.PI / 180.0
     };
   }
 
   reset() {
-    // State: [y, v, M_w]
+    // State: [x, y, vx, vy, M_w]
     const M_0w = this.params.V_0w * RHO_W;
     this.state = {
+      x: 0.0,
       y: 0.0,
-      v: 0.0,
+      vx: 0.0,
+      vy: 0.0,
       M_w: M_0w,
       t: 0.0,
       phase: 'Launch Tube'
     };
     this.history = [];
     this.flightActive = true;
+    this.maxHeightReached = false;
   }
 
   calculatePressure(M_w) {
@@ -69,43 +73,61 @@ class RocketSimulation {
     return Math.sqrt(termPressure + termGravity);
   }
 
-  calculateDrag(v) {
-    // F_D = 0.5 * rho * v^2 * Cd * A
-    return 0.5 * RHO_AIR * Math.pow(v, 2) * this.params.C_D * this.params.A_ref;
+  calculateDrag(vx, vy) {
+    // Calculate drag in 2D
+    const v_total = Math.sqrt(vx * vx + vy * vy);
+    if (v_total < 1e-6) return { F_Dx: 0.0, F_Dy: 0.0 };
+    
+    const F_D_mag = 0.5 * RHO_AIR * v_total * v_total * this.params.C_D * this.params.A_ref;
+    const F_Dx = -F_D_mag * (vx / v_total);
+    const F_Dy = -F_D_mag * (vy / v_total);
+    
+    return { F_Dx, F_Dy };
   }
 
   derivatives(state) {
-    const { y, v, M_w } = state;
+    const { x, y, vx, vy, M_w } = state;
     let dMw_dt = 0.0;
-    let thrust = 0.0;
+    let thrust_x = 0.0;
+    let thrust_y = 0.0;
     let M_total = this.params.M_r;
-
-    // Phase determination for physics
-    // Note: 'Launch Tube' phase logic is simplified here to behave like Water phase 
-    // but physically constrained by the tube (not implemented in detail in the python script, 
-    // so we follow the python script's approach of integrating it as water phase).
 
     if (M_w > 1e-5) {
       const P = this.calculatePressure(M_w);
       const u_e = this.calculateEscapeVelocity(P, M_w);
 
       dMw_dt = -RHO_W * this.params.A_e * u_e;
-      thrust = -dMw_dt * u_e;
+      const thrust_mag = -dMw_dt * u_e;
+      
+      // Determine thrust direction
+      const v_total = Math.sqrt(vx * vx + vy * vy);
+      if (v_total > 1e-3) {
+        // Use velocity direction
+        thrust_x = thrust_mag * (vx / v_total);
+        thrust_y = thrust_mag * (vy / v_total);
+      } else {
+        // Use launch angle
+        thrust_x = thrust_mag * Math.cos(this.params.launch_angle_rad);
+        thrust_y = thrust_mag * Math.sin(this.params.launch_angle_rad);
+      }
+      
       M_total += M_w;
     } else {
-      // Air/Ballistic
       M_total = this.params.M_r;
-      thrust = 0.0;
+      thrust_x = 0.0;
+      thrust_y = 0.0;
       dMw_dt = 0.0;
     }
 
-    const F_D = this.calculateDrag(v);
-    const gravity = M_total * G;
+    const drag = this.calculateDrag(vx, vy);
+    const gravity_y = -M_total * G;
 
-    const dy_dt = v;
-    const dv_dt = (thrust - gravity - Math.sign(v) * F_D) / M_total;
+    const dx_dt = vx;
+    const dy_dt = vy;
+    const dvx_dt = (thrust_x + drag.F_Dx) / M_total;
+    const dvy_dt = (thrust_y + drag.F_Dy + gravity_y) / M_total;
 
-    return { dy_dt, dv_dt, dMw_dt, thrust };
+    return { dx_dt, dy_dt, dvx_dt, dvy_dt, dMw_dt, thrust_x, thrust_y };
   }
 
   step() {
@@ -114,8 +136,10 @@ class RocketSimulation {
     const derivs = this.derivatives(this.state);
 
     // Euler Step
+    this.state.x += derivs.dx_dt * DT;
     this.state.y += derivs.dy_dt * DT;
-    this.state.v += derivs.dv_dt * DT;
+    this.state.vx += derivs.dvx_dt * DT;
+    this.state.vy += derivs.dvy_dt * DT;
     this.state.M_w += derivs.dMw_dt * DT;
     this.state.t += DT;
 
@@ -130,20 +154,26 @@ class RocketSimulation {
     } else {
       const P = this.calculatePressure(this.state.M_w);
       if (P > P_ATM && this.state.M_w <= 1e-4) {
-        this.state.phase = 'Air Thrust'; // Short phase
+        this.state.phase = 'Air Thrust';
       } else {
         this.state.phase = 'Ballistic';
       }
     }
 
-    // Ground collision (simplified - same as Python fix)
-    if (this.state.y <= 0 && this.state.v < 0) {
+    // Track max height for termination
+    if (this.state.vy < 0 && !this.maxHeightReached) {
+      this.maxHeightReached = true;
+    }
+
+    // Ground collision
+    if (this.state.y <= 0 && this.maxHeightReached) {
       this.state.y = 0;
-      this.state.v = 0;
+      this.state.vx = 0;
+      this.state.vy = 0;
       this.flightActive = false;
     }
 
-    // Store history for plotting if needed (limiting size)
+    // Store history
     if (this.state.t % 0.1 < DT) {
       this.history.push({ ...this.state });
     }

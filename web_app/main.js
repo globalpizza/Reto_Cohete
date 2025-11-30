@@ -14,7 +14,8 @@ const inputs = {
   v_water: document.getElementById('v_water'),
   m_rocket: document.getElementById('m_rocket'),
   cd: document.getElementById('cd'),
-  a_nozzle: document.getElementById('a_nozzle')
+  a_nozzle: document.getElementById('a_nozzle'),
+  launch_angle: document.getElementById('launch_angle')
 };
 
 // Displays
@@ -24,7 +25,8 @@ const displays = {
   v_water: document.getElementById('val_v_water'),
   m_rocket: document.getElementById('val_m_rocket'),
   cd: document.getElementById('val_cd'),
-  a_nozzle: document.getElementById('val_a_nozzle')
+  a_nozzle: document.getElementById('val_a_nozzle'),
+  launch_angle: document.getElementById('val_launch_angle')
 };
 
 // Stats
@@ -34,6 +36,7 @@ const stats = {
   velocity: document.getElementById('stat-velocity'),
   water: document.getElementById('stat-water'),
   maxHeight: document.getElementById('max-height'),
+  maxRange: document.getElementById('max-range'),
   maxSpeed: document.getElementById('max-speed')
 };
 
@@ -48,6 +51,7 @@ let isRunning = false;
 let scale = 10; // Pixels per meter (initial)
 let cameraY = 0; // Camera vertical position
 let maxH = 0;
+let maxR = 0;
 let maxV = 0;
 
 // --- Initialization ---
@@ -107,6 +111,7 @@ function updateDisplay(key, value) {
   }
   if (key === 'm_rocket') suffix = ' g';
   if (key === 'a_nozzle') suffix = ' cm²';
+  if (key === 'launch_angle') suffix = '°';
 
   displays[key].textContent = value + suffix;
 }
@@ -121,7 +126,8 @@ function getParams() {
     M_r_g: parseFloat(inputs.m_rocket.value),
     H_tube_m: 1.0,
     C_D: parseFloat(inputs.cd.value),
-    A_ref_cm2: 100.0
+    A_ref_cm2: 100.0,
+    launch_angle_deg: parseFloat(inputs.launch_angle.value)
   };
 }
 
@@ -130,6 +136,7 @@ function resetSimulation() {
   isRunning = false;
   sim = new RocketSimulation(getParams());
   maxH = 0;
+  maxR = 0;
   maxV = 0;
   cameraY = 0;
 
@@ -140,6 +147,7 @@ function resetSimulation() {
   stats.velocity.textContent = "0.0 km/h";
   stats.water.textContent = "100%";
   stats.maxHeight.textContent = "0.0";
+  stats.maxRange.textContent = "0.0";
   stats.maxSpeed.textContent = "0.0";
 
   draw();
@@ -175,10 +183,12 @@ function loop(timestamp) {
 
   // Update Stats
   const h = sim.state.y;
-  const v = sim.state.v;
-  const v_kmh = v * 3.6;
+  const r = sim.state.x;
+  const v_total = Math.sqrt(sim.state.vx * sim.state.vx + sim.state.vy * sim.state.vy);
+  const v_kmh = v_total * 3.6;
 
   if (h > maxH) maxH = h;
+  if (r > maxR) maxR = r;
   if (v_kmh > maxV) maxV = v_kmh;
 
   stats.height.textContent = h.toFixed(1) + " m";
@@ -188,6 +198,7 @@ function loop(timestamp) {
   stats.water.textContent = Math.max(0, waterPercent).toFixed(0) + "%";
 
   stats.maxHeight.textContent = maxH.toFixed(1);
+  stats.maxRange.textContent = maxR.toFixed(1);
   stats.maxSpeed.textContent = maxV.toFixed(1);
 
   // Phase styling
@@ -250,6 +261,8 @@ function draw() {
   }
 
   const groundY = canvas.height - 50;
+  const launchX = 100; // Launch point offset from left
+  const rocketCanvasX = launchX + (sim.state.x * currentScale);
   const rocketCanvasY = groundY - (sim.state.y * currentScale);
 
   // Draw Ground
@@ -270,9 +283,47 @@ function draw() {
   }
   ctx.stroke();
 
+  // Draw trajectory trail
+  if (sim.history.length > 1) {
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(launchX, groundY);
+    sim.history.forEach(point => {
+      const px = launchX + (point.x * currentScale);
+      const py = groundY - (point.y * currentScale);
+      ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+  }
+
+  // Draw launch angle indicator
+  ctx.save();
+  ctx.translate(launchX, groundY);
+  ctx.strokeStyle = 'rgba(251, 146, 60, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  const angleLen = 50;
+  ctx.lineTo(angleLen * Math.cos(sim.params.launch_angle_rad), 
+             -angleLen * Math.sin(sim.params.launch_angle_rad));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
   // Draw Rocket
   ctx.save();
-  ctx.translate(canvas.width / 2, rocketCanvasY);
+  ctx.translate(rocketCanvasX, rocketCanvasY);
+  
+  // Rotate rocket based on velocity direction
+  let rocketAngle = sim.params.launch_angle_rad;
+  if (sim.state.vx !== 0 || sim.state.vy !== 0) {
+    rocketAngle = Math.atan2(sim.state.vy, sim.state.vx) - Math.PI / 2;
+  } else {
+    rocketAngle = sim.params.launch_angle_rad - Math.PI / 2;
+  }
+  ctx.rotate(rocketAngle);
 
   // Rocket Body
   ctx.fillStyle = '#e2e8f0';
