@@ -4,11 +4,18 @@ import numpy as np
 import pandas as pd
 from utils.parameters import PARAMS, RHO_W, G, DT, P_ATM
 from utils.euler import euler_step
-from physics.derivatives import calculate_pressure
+import physics.water_phase as water_phase
 from visualization import plot_results
+
+# Función exportada desde water_phase
+calculate_pressure = water_phase.calculate_pressure
 
 def run_simulation(params):
     """Ejecuta la simulación completa del cohete (Fases 1, 2 y 3)."""
+    
+    # Establecer los parámetros actuales para la simulación
+    from physics.derivatives import set_simulation_params
+    set_simulation_params(params)
     
     # 1. ESTADO INICIAL (SI)
     M_0w = params['V_0w'] * RHO_W
@@ -35,7 +42,7 @@ def run_simulation(params):
         elif M_w_n > 1e-4: # Usamos un umbral pequeño en lugar de 1e-9 para estabilidad numérica
             phase = 'Water' # Fase 2
             
-        elif calculate_pressure(M_w_n) > P_ATM and M_w_n <= 1e-4:
+        elif calculate_pressure(M_w_n, params) > P_ATM and M_w_n <= 1e-4:
             phase = 'Air' # Fase 3A (Empuje residual del aire) - Simplificado en derivatives.py
             
         else:
@@ -43,7 +50,7 @@ def run_simulation(params):
             
             
         # 3. CÁLCULO DE VARIABLES AUXILIARES PARA LOGGING
-        P_n = calculate_pressure(M_w_n)
+        P_n = calculate_pressure(M_w_n, params)
         
         results.append({
             'Time': t, 
@@ -55,13 +62,13 @@ def run_simulation(params):
         })
         
         # 4. CONDICIÓN DE FIN DE VUELO
-        # Si estamos en fase balística, cayendo (v < 0) y llegamos al suelo (y <= 0)
-        if phase == 'Ballistic' and v_n < 0 and y_n <= 0:
+        # Si estamos cayendo (v < 0) y llegamos al suelo (y <= 0)
+        if v_n < 0 and y_n <= 0:
             flight_active = False
             break
             
         # 5. PASO DE INTEGRACIÓN (Euler)
-        Y_n = euler_step(Y_n)
+        Y_n = euler_step(Y_n, params)
         
         # Ajuste de condiciones de frontera después del paso (la masa no puede ser negativa)
         if Y_n[2] < 0:

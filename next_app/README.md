@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Next.js Water Rocket Simulator
 
-## Getting Started
+Aplicación web moderna construida con **Next.js 16**, **React 19** y **TypeScript** que simula el vuelo de un cohete de agua con física de alta precisión usando el **método Runge-Kutta 4 (RK4)**.
 
-First, run the development server:
+## 🌟 Características
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- ⚡ **Física RK4**: Integración numérica de 4to orden (más precisa que Euler)
+- 🎨 **UI Moderna**: Tailwind CSS v4
+- 📱 **Responsive**: Desktop, tablet y móvil
+- 🎮 **Interactiva**: Controles en tiempo real
+- 📊 **Estadísticas en Vivo**: Altura, velocidad, fase
+
+## 🚀 Inicio Rápido
+
+### Opción 1: Script PowerShell (desde la raíz del proyecto)
+
+```powershell
+.\start_next_app.ps1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Opción 2: Comandos Manuales
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+cd next_app
+npm install  # Primera vez
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Abre: **http://localhost:3000**
 
-## Learn More
+## 📦 Estructura
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/page.tsx              # Página principal
+components/RocketSimulation.tsx  # Componente de simulación
+utils/physics.ts          # Motor de física (RK4)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎮 Controles
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Presión (psi)**: 20-150
+- **Volumen Agua (L)**: 0.1-1.5
+- **Masa Cohete (g)**: 20-200
+- **Coef. Arrastre**: 0.1-1.5
+- **Boquilla (cm²)**: 1.0-10.0
 
-## Deploy on Vercel
+## 🔬 Física
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Método**: Runge-Kutta 4 (error O(h⁴))
+- **Ecuaciones**: Adiabática, Bernoulli, Empuje, Arrastre
+- **Precisión**: Superior a Euler simple
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Comandos
+
+```powershell
+npm run dev    # Desarrollo
+npm run build  # Producción
+npm start      # Ejecutar build
+```
+
+## 📚 Recursos
+
+- [Next.js Docs](https://nextjs.org/docs)
+- [Tailwind CSS](https://tailwindcss.com)
+- [TypeScript](https://www.typescriptlang.org)
+
+---
+
+**Para más información, consulta la documentación completa en el directorio raíz del proyecto.**

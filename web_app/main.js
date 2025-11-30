@@ -10,6 +10,7 @@ const ctx = canvas.getContext('2d');
 // Inputs
 const inputs = {
   p_psi: document.getElementById('p_psi'),
+  v_bottle: document.getElementById('v_bottle'),
   v_water: document.getElementById('v_water'),
   m_rocket: document.getElementById('m_rocket'),
   cd: document.getElementById('cd'),
@@ -19,6 +20,7 @@ const inputs = {
 // Displays
 const displays = {
   p_psi: document.getElementById('val_p_psi'),
+  v_bottle: document.getElementById('val_v_bottle'),
   v_water: document.getElementById('val_v_water'),
   m_rocket: document.getElementById('val_m_rocket'),
   cd: document.getElementById('val_cd'),
@@ -50,12 +52,27 @@ let maxV = 0;
 
 // --- Initialization ---
 function init() {
+  // Initialize simulation FIRST
+  resetSimulation();
+  
+  // Then setup canvas
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
-
+  
   // Bind inputs
   Object.keys(inputs).forEach(key => {
     inputs[key].addEventListener('input', (e) => {
+      // Si cambia el volumen de botella, ajustar límite de agua
+      if (key === 'v_bottle') {
+        const bottleVol = parseFloat(e.target.value);
+        inputs.v_water.max = bottleVol * 0.95; // Max 95% de llenado
+        // Si el agua actual excede el nuevo límite, ajustarla
+        if (parseFloat(inputs.v_water.value) > bottleVol * 0.95) {
+          inputs.v_water.value = bottleVol * 0.95;
+          updateDisplay('v_water', inputs.v_water.value);
+        }
+      }
+      
       updateDisplay(key, e.target.value);
       if (!isRunning) resetSimulation(); // Live preview reset
     });
@@ -63,21 +80,31 @@ function init() {
 
   btnLaunch.addEventListener('click', startLaunch);
   btnReset.addEventListener('click', resetSimulation);
+  
+  // Initialize all displays
+  Object.keys(inputs).forEach(key => {
+    updateDisplay(key, inputs[key].value);
+  });
 
-  resetSimulation();
-  draw(); // Initial draw
+  draw(); // Initial draw (now sim exists)
 }
 
 function resizeCanvas() {
   canvas.width = canvas.parentElement.clientWidth;
   canvas.height = canvas.parentElement.clientHeight;
-  draw();
+  if (sim) draw();
 }
 
 function updateDisplay(key, value) {
   let suffix = '';
   if (key === 'p_psi') suffix = ' psi';
-  if (key === 'v_water') suffix = ' L';
+  if (key === 'v_bottle') suffix = ' L';
+  if (key === 'v_water') {
+    const bottleVol = parseFloat(inputs.v_bottle.value);
+    const waterVol = parseFloat(value);
+    const percent = ((waterVol / bottleVol) * 100).toFixed(0);
+    suffix = ` L (${percent}%)`;
+  }
   if (key === 'm_rocket') suffix = ' g';
   if (key === 'a_nozzle') suffix = ' cm²';
 
@@ -87,7 +114,7 @@ function updateDisplay(key, value) {
 function getParams() {
   return {
     p_manometric_psi: parseFloat(inputs.p_psi.value),
-    V_r_L: 2.0, // Fixed bottle volume for now as per original script default, or could be added
+    V_r_L: parseFloat(inputs.v_bottle.value),
     V_0w_L: parseFloat(inputs.v_water.value),
     A_e_cm2: parseFloat(inputs.a_nozzle.value),
     A_r_cm2: 95.0,
@@ -165,11 +192,28 @@ function loop(timestamp) {
 
   // Phase styling
   let phaseClass = "phase-ready";
-  if (sim.state.phase.includes("Water")) phaseClass = "phase-water";
-  if (sim.state.phase.includes("Air")) phaseClass = "phase-air";
-  if (sim.state.phase.includes("Ballistic")) phaseClass = "phase-ballistic";
+  let phaseDisplay = sim.state.phase;
+  
+  if (sim.state.phase.includes("Water")) {
+    phaseClass = "phase-water";
+    phaseDisplay = "💧 Expulsión Agua";
+  } else if (sim.state.phase.includes("Air")) {
+    phaseClass = "phase-air";
+    phaseDisplay = "💨 Empuje Aire";
+  } else if (sim.state.phase.includes("Ballistic")) {
+    phaseClass = "phase-ballistic";
+    phaseDisplay = "🪂 Caída Libre";
+  } else if (sim.state.phase.includes("Launch")) {
+    phaseClass = "phase-water";
+    phaseDisplay = "🚀 Tubo Lanzamiento";
+  }
+  
+  if (!sim.flightActive && sim.state.y <= 0) {
+    phaseDisplay = "✅ Aterrizó";
+    phaseClass = "phase-ready";
+  }
 
-  stats.phase.textContent = sim.state.phase;
+  stats.phase.textContent = phaseDisplay;
   stats.phase.className = "stat-value " + phaseClass;
 
   draw();
@@ -184,6 +228,9 @@ function draw() {
   // Clear
   ctx.fillStyle = '#0f172a'; // Match bg
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Check if simulation exists
+  if (!sim) return;
 
   // Camera Logic
   // Keep rocket in middle vertically, but don't go below ground

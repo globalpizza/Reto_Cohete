@@ -136,8 +136,8 @@ class RocketSimulation {
       }
     }
 
-    // Ground collision
-    if (this.state.phase === 'Ballistic' && this.state.y <= 0 && this.state.v < 0) {
+    // Ground collision (simplified - same as Python fix)
+    if (this.state.y <= 0 && this.state.v < 0) {
       this.state.y = 0;
       this.state.v = 0;
       this.flightActive = false;

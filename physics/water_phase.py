@@ -3,11 +3,13 @@
 from utils.parameters import PARAMS, GAMMA, P_ATM, RHO_W, G
 import numpy as np
 
-def calculate_pressure(M_w_n):
+def calculate_pressure(M_w_n, params=None):
     """Calcula la presión absoluta instantánea P(t) usando la Ley Adiabática."""
-    P_i = PARAMS['P_i_abs']
-    V_r = PARAMS['V_r']
-    V_0w = PARAMS['V_0w']
+    if params is None:
+        params = PARAMS
+    P_i = params['P_i_abs']
+    V_r = params['V_r']
+    V_0w = params['V_0w']
     
     # 1. Volumen de agua instantáneo
     V_w_n = M_w_n / RHO_W
@@ -23,13 +25,15 @@ def calculate_pressure(M_w_n):
     P_n = P_i * (V_air_0 / V_air_n)**GAMMA
     return P_n
 
-def calculate_escape_velocity(P_n, M_w_n):
+def calculate_escape_velocity(P_n, M_w_n, params=None):
     """
     Calcula la velocidad de escape instantánea u_e(t) usando la fórmula completa de Bernoulli.
     Esta es la 'solución exacta' pedida, incluyendo el término hidrostático dinámico. [1]
     """
-    A_r = PARAMS['A_r']
-    A_e = PARAMS['A_e']
+    if params is None:
+        params = PARAMS
+    A_r = params['A_r']
+    A_e = params['A_e']
     
     V_w_n = M_w_n / RHO_W
     
