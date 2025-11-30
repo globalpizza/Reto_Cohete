@@ -8,77 +8,150 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
     <div class="app-container">
         <!-- Sidebar Controls -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <h1>🚀 WaterRocket<span class="accent">Sim</span></h1>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Simulación Física 2D</p>
+            </div>
+
+            <!-- Presets -->
+            <div>
+                <div class="section-header">⚡ Configuraciones Rápidas</div>
+                <div class="presets">
+                    <button class="preset-btn" data-preset="beginner">🎯 Principiante</button>
+                    <button class="preset-btn" data-preset="optimal">🏆 Óptimo</button>
+                    <button class="preset-btn" data-preset="max-height">📈 Altura Max</button>
+                    <button class="preset-btn" data-preset="max-range">🎯 Alcance Max</button>
+                </div>
             </div>
             
             <div class="controls">
+                <div class="section-header">⚙️ Parámetros</div>
+                
                 <div class="control-group">
-                    <label>Presión Inicial (psi)</label>
+                    <label>
+                        Presión Inicial (psi)
+                        <span class="tooltip-icon">?</span>
+                    </label>
+                    <div class="tooltip-text">Presión del aire dentro de la botella. Mayor presión = más empuje. Rango seguro: 40-100 psi.</div>
                     <input type="range" id="p_psi" min="20" max="150" value="70" step="1">
                     <span class="value-display" id="val_p_psi">70 psi</span>
                 </div>
 
                 <div class="control-group">
-                    <label>Volumen Botella (L)</label>
+                    <label>
+                        Volumen Botella (L)
+                        <span class="tooltip-icon">?</span>
+                    </label>
+                    <div class="tooltip-text">Capacidad total de la botella. Botellas típicas: 1.5L, 2L, 3L.</div>
                     <input type="range" id="v_bottle" min="1.0" max="3.0" value="2.0" step="0.1">
                     <span class="value-display" id="val_v_bottle">2.0 L</span>
                 </div>
 
                 <div class="control-group">
-                    <label>Volumen Agua (L)</label>
+                    <label>
+                        Volumen Agua (L)
+                        <span class="tooltip-icon">?</span>
+                        <span class="recommended">25-40% óptimo</span>
+                    </label>
+                    <div class="tooltip-text">Cantidad de agua inicial. Muy poca = poco empuje. Mucha = demasiado peso. Óptimo: 25-40% del volumen total.</div>
                     <input type="range" id="v_water" min="0.1" max="1.5" value="0.5" step="0.1">
                     <span class="value-display" id="val_v_water">0.5 L (25%)</span>
                 </div>
 
                 <div class="control-group">
-                    <label>Masa Cohete (g)</label>
+                    <label>
+                        Masa Cohete (g)
+                        <span class="tooltip-icon">?</span>
+                    </label>
+                    <div class="tooltip-text">Peso de la botella vacía + estructura. Más liviano = mejor desempeño. Típico: 40-80g.</div>
                     <input type="range" id="m_rocket" min="20" max="200" value="55" step="5">
                     <span class="value-display" id="val_m_rocket">55 g</span>
                 </div>
 
                 <div class="control-group">
-                    <label>Coef. Arrastre (Cd)</label>
+                    <label>
+                        Coef. Arrastre (Cd)
+                        <span class="tooltip-icon">?</span>
+                    </label>
+                    <div class="tooltip-text">Resistencia aerodinámica. Menor = más aerodinámico. Esfera: 0.47, Cohete bien diseñado: 0.3-0.5.</div>
                     <input type="range" id="cd" min="0.1" max="1.5" value="0.75" step="0.05">
                     <span class="value-display" id="val_cd">0.75</span>
                 </div>
                 
                 <div class="control-group">
-                     <label>Boquilla (cm²)</label>
-                     <input type="range" id="a_nozzle" min="1.0" max="10.0" value="4.5" step="0.5">
-                     <span class="value-display" id="val_a_nozzle">4.5 cm²</span>
+                    <label>
+                        Boquilla (cm²)
+                        <span class="tooltip-icon">?</span>
+                    </label>
+                    <div class="tooltip-text">Área de salida del agua. Muy grande = empuje corto. Muy pequeña = poco flujo. Óptimo: 3-6 cm².</div>
+                    <input type="range" id="a_nozzle" min="1.0" max="10.0" value="4.5" step="0.5">
+                    <span class="value-display" id="val_a_nozzle">4.5 cm²</span>
                 </div>
 
                 <div class="control-group">
-                     <label>Ángulo Lanzamiento (°)</label>
-                     <input type="range" id="launch_angle" min="0" max="90" value="45" step="5">
-                     <span class="value-display" id="val_launch_angle">45°</span>
+                    <label>
+                        Ángulo Lanzamiento (°)
+                        <span class="tooltip-icon">?</span>
+                        <span class="recommended">30° para alcance</span>
+                    </label>
+                    <div class="tooltip-text">Ángulo desde el suelo. 0° = horizontal, 90° = vertical. Para máximo alcance: ~30°. Para máxima altura: 90°.</div>
+                    <input type="range" id="launch_angle" min="0" max="90" value="45" step="5">
+                    <span class="value-display" id="val_launch_angle">45°</span>
                 </div>
 
-                <button id="btn-launch" class="btn-primary">LANZAR 🚀</button>
-                <button id="btn-reset" class="btn-secondary">REINICIAR ↺</button>
+                <button id="btn-launch" class="btn-primary">🚀 LANZAR</button>
+                <button id="btn-reset" class="btn-secondary">↺ REINICIAR</button>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-label">Simulando vuelo...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
             </div>
 
             <div class="stats-panel">
-                <h3>Estadísticas en Vivo</h3>
+                <h3>📊 Estadísticas en Vivo</h3>
                 <div class="stat-row">
-                    <span>Fase:</span>
+                    <span><span class="stat-icon">🏁</span>Fase:</span>
                     <span id="stat-phase" class="stat-value phase-ready">Listo</span>
                 </div>
                 <div class="stat-row">
-                    <span>Altura:</span>
+                    <span><span class="stat-icon">📏</span>Altura:</span>
                     <span id="stat-height" class="stat-value">0.0 m</span>
                 </div>
                 <div class="stat-row">
-                    <span>Velocidad:</span>
+                    <span><span class="stat-icon">📍</span>Alcance:</span>
+                    <span id="stat-range" class="stat-value">0.0 m</span>
+                </div>
+                <div class="stat-row">
+                    <span><span class="stat-icon">⚡</span>Velocidad:</span>
                     <span id="stat-velocity" class="stat-value">0.0 km/h</span>
                 </div>
                 <div class="stat-row">
-                    <span>Agua Restante:</span>
+                    <span><span class="stat-icon">💧</span>Agua:</span>
                     <span id="stat-water" class="stat-value">100%</span>
+                </div>
+                <div class="stat-row">
+                    <span><span class="stat-icon">⏱️</span>Tiempo:</span>
+                    <span id="stat-time" class="stat-value">0.0 s</span>
+                </div>
+                
+                <!-- Phase Timeline -->
+                <div style="margin-top: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Fases del vuelo:</div>
+                    <div class="phase-timeline">
+                        <div class="phase-segment water" id="phase-water"></div>
+                        <div class="phase-segment air" id="phase-air"></div>
+                        <div class="phase-segment ballistic" id="phase-ballistic"></div>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -86,11 +159,21 @@
         <!-- Main Visualization Area -->
         <main class="viewport">
             <canvas id="simCanvas"></canvas>
+            
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-content">
+                    <div class="spinner"></div>
+                    <p>Calculando trayectoria...</p>
+                </div>
+            </div>
+            
             <div class="overlay-info">
                 <div class="max-values">
-                    <p>Max Altura: <span id="max-height">0.0</span> m</p>
-                    <p>Max Alcance: <span id="max-range">0.0</span> m</p>
-                    <p>Max Velocidad: <span id="max-speed">0.0</span> km/h</p>
+                    <p>🏔️ Max Altura: <span id="max-height">0.0</span> m</p>
+                    <p>🎯 Max Alcance: <span id="max-range">0.0</span> m</p>
+                    <p>⚡ Max Velocidad: <span id="max-speed">0.0</span> km/h</p>
+                    <p>⏱️ Tiempo Vuelo: <span id="flight-time">0.0</span> s</p>
                 </div>
             </div>
         </main>

@@ -33,16 +33,61 @@ const displays = {
 const stats = {
   phase: document.getElementById('stat-phase'),
   height: document.getElementById('stat-height'),
+  range: document.getElementById('stat-range'),
   velocity: document.getElementById('stat-velocity'),
   water: document.getElementById('stat-water'),
+  time: document.getElementById('stat-time'),
   maxHeight: document.getElementById('max-height'),
   maxRange: document.getElementById('max-range'),
-  maxSpeed: document.getElementById('max-speed')
+  maxSpeed: document.getElementById('max-speed'),
+  flightTime: document.getElementById('flight-time')
 };
 
 // Buttons
 const btnLaunch = document.getElementById('btn-launch');
 const btnReset = document.getElementById('btn-reset');
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+
+// Presets
+const PRESETS = {
+  beginner: {
+    p_psi: 50,
+    v_bottle: 2.0,
+    v_water: 0.5,
+    m_rocket: 60,
+    cd: 0.75,
+    a_nozzle: 4.5,
+    launch_angle: 45
+  },
+  optimal: {
+    p_psi: 85,
+    v_bottle: 2.0,
+    v_water: 0.7,
+    m_rocket: 45,
+    cd: 0.55,
+    a_nozzle: 5.0,
+    launch_angle: 30
+  },
+  'max-height': {
+    p_psi: 100,
+    v_bottle: 2.0,
+    v_water: 0.8,
+    m_rocket: 40,
+    cd: 0.5,
+    a_nozzle: 4.0,
+    launch_angle: 85
+  },
+  'max-range': {
+    p_psi: 90,
+    v_bottle: 2.0,
+    v_water: 0.65,
+    m_rocket: 45,
+    cd: 0.5,
+    a_nozzle: 5.5,
+    launch_angle: 30
+  }
+};
 
 // --- State ---
 let sim = null;
@@ -62,6 +107,35 @@ function init() {
   // Then setup canvas
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+  
+  // Mobile menu toggle
+  if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+    });
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', (e) => {
+      if (window.innerWidth <= 768 && 
+          !sidebar.contains(e.target) && 
+          !menuToggle.contains(e.target) &&
+          sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+      }
+    });
+  }
+  
+  // Preset buttons
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      applyPreset(preset);
+      
+      // Visual feedback
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
   
   // Bind inputs
   Object.keys(inputs).forEach(key => {
@@ -91,6 +165,20 @@ function init() {
   });
 
   draw(); // Initial draw (now sim exists)
+}
+
+function applyPreset(presetName) {
+  const preset = PRESETS[presetName];
+  if (!preset) return;
+  
+  Object.keys(preset).forEach(key => {
+    if (inputs[key]) {
+      inputs[key].value = preset[key];
+      updateDisplay(key, preset[key]);
+    }
+  });
+  
+  resetSimulation();
 }
 
 function resizeCanvas() {
@@ -144,11 +232,18 @@ function resetSimulation() {
   stats.phase.textContent = "Listo";
   stats.phase.className = "stat-value phase-ready";
   stats.height.textContent = "0.0 m";
+  stats.range.textContent = "0.0 m";
   stats.velocity.textContent = "0.0 km/h";
   stats.water.textContent = "100%";
+  stats.time.textContent = "0.0 s";
   stats.maxHeight.textContent = "0.0";
   stats.maxRange.textContent = "0.0";
   stats.maxSpeed.textContent = "0.0";
+  stats.flightTime.textContent = "0.0";
+  
+  // Reset progress
+  document.getElementById('progressContainer').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
 
   draw();
 }
@@ -158,6 +253,10 @@ function startLaunch() {
   resetSimulation(); // Ensure fresh start
   isRunning = true;
   lastTime = performance.now();
+  
+  // Show progress
+  document.getElementById('progressContainer').style.display = 'block';
+  
   loop();
 }
 
@@ -192,7 +291,9 @@ function loop(timestamp) {
   if (v_kmh > maxV) maxV = v_kmh;
 
   stats.height.textContent = h.toFixed(1) + " m";
+  stats.range.textContent = r.toFixed(1) + " m";
   stats.velocity.textContent = v_kmh.toFixed(1) + " km/h";
+  stats.time.textContent = sim.state.t.toFixed(2) + " s";
 
   const waterPercent = (sim.state.M_w / (sim.params.V_0w * RHO_W)) * 100;
   stats.water.textContent = Math.max(0, waterPercent).toFixed(0) + "%";
@@ -200,6 +301,11 @@ function loop(timestamp) {
   stats.maxHeight.textContent = maxH.toFixed(1);
   stats.maxRange.textContent = maxR.toFixed(1);
   stats.maxSpeed.textContent = maxV.toFixed(1);
+  stats.flightTime.textContent = sim.state.t.toFixed(2);
+  
+  // Update progress bar
+  const progress = Math.min(100, (sim.state.t / 5.0) * 100); // Assume max 5s flight
+  document.getElementById('progressFill').style.width = progress + '%';
 
   // Phase styling
   let phaseClass = "phase-ready";
@@ -237,56 +343,82 @@ function loop(timestamp) {
 // --- Drawing ---
 function draw() {
   // Clear
-  ctx.fillStyle = '#0f172a'; // Match bg
+  ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Check if simulation exists
   if (!sim) return;
 
-  // Camera Logic
-  // Keep rocket in middle vertically, but don't go below ground
-  const targetCamY = sim.state.y * scale;
-  // Smooth follow
-  // cameraY = targetCamY; 
-  // Actually, let's map simulation Y to canvas Y.
-  // Ground is at canvas.height - 50.
-  // Up is negative Y in canvas.
-
-  // Dynamic Scale: Zoom out as it goes higher
-  // Base scale 20px/m. If height > 20m, reduce scale.
-  let currentScale = 20;
-  if (sim.state.y > 10) {
-    currentScale = 200 / (sim.state.y + 1); // rough zoom out
-    if (currentScale < 2) currentScale = 2; // Min scale
+  // Dynamic Scale
+  let currentScale = 15;
+  const maxDim = Math.max(maxH, maxR);
+  if (maxDim > 15) {
+    currentScale = Math.max(2, (canvas.height - 150) / maxDim);
   }
 
-  const groundY = canvas.height - 50;
-  const launchX = 100; // Launch point offset from left
+  const groundY = canvas.height - 60;
+  const launchX = 120;
   const rocketCanvasX = launchX + (sim.state.x * currentScale);
   const rocketCanvasY = groundY - (sim.state.y * currentScale);
 
-  // Draw Ground
-  ctx.fillStyle = '#22c55e';
-  ctx.fillRect(0, groundY, canvas.width, 50);
-
-  // Draw Grid/Sky hints
-  ctx.strokeStyle = '#334155';
+  // Draw Grid Background (improved)
+  ctx.save();
+  
+  // Horizontal grid lines (height)
+  ctx.strokeStyle = 'rgba(51, 65, 85, 0.3)';
   ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let h = 10; h < 1000; h += 10) {
+  ctx.font = '11px Inter, sans-serif';
+  ctx.fillStyle = '#64748b';
+  
+  for (let h = 5; h < 200; h += 5) {
     const y = groundY - (h * currentScale);
-    if (y < 0) break;
+    if (y < 20) break;
+    
+    ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(canvas.width, y);
-    ctx.fillStyle = '#64748b';
-    ctx.fillText(h + 'm', 10, y - 2);
+    ctx.stroke();
+    
+    if (h % 10 === 0) {
+      ctx.fillText(h + 'm', 8, y - 3);
+    }
   }
+  
+  // Vertical grid lines (distance)
+  for (let d = 10; d < 200; d += 10) {
+    const x = launchX + (d * currentScale);
+    if (x > canvas.width - 20) break;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, groundY);
+    ctx.lineTo(x, 0);
+    ctx.stroke();
+    
+    ctx.fillText(d + 'm', x - 10, groundY - 5);
+  }
+  
+  ctx.restore();
+
+  // Draw Ground with grass texture
+  const gradient = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+  gradient.addColorStop(0, '#22c55e');
+  gradient.addColorStop(1, '#16a34a');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+  
+  // Ground line
+  ctx.strokeStyle = '#15803d';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(canvas.width, groundY);
   ctx.stroke();
 
-  // Draw trajectory trail
+  // Draw trajectory trail with gradient
   if (sim.history.length > 1) {
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.moveTo(launchX, groundY);
     sim.history.forEach(point => {
@@ -295,22 +427,41 @@ function draw() {
       ctx.lineTo(px, py);
     });
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   // Draw launch angle indicator
   ctx.save();
   ctx.translate(launchX, groundY);
-  ctx.strokeStyle = 'rgba(251, 146, 60, 0.7)';
+  ctx.strokeStyle = 'rgba(251, 146, 60, 0.8)';
   ctx.lineWidth = 2;
   ctx.setLineDash([5, 5]);
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  const angleLen = 50;
+  const angleLen = 60;
   ctx.lineTo(angleLen * Math.cos(sim.params.launch_angle_rad), 
              -angleLen * Math.sin(sim.params.launch_angle_rad));
   ctx.stroke();
   ctx.setLineDash([]);
+  
+  // Angle arc
+  ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, 30, -sim.params.launch_angle_rad, 0, false);
+  ctx.stroke();
+  
+  // Angle label
+  ctx.fillStyle = '#fb923c';
+  ctx.font = 'bold 12px Inter';
+  const angleDeg = (sim.params.launch_angle_rad * 180 / Math.PI).toFixed(0);
+  ctx.fillText(angleDeg + '°', 35, -10);
+  
   ctx.restore();
+
+  // Draw launch platform
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(launchX - 15, groundY - 5, 30, 5);
 
   // Draw Rocket
   ctx.save();
@@ -325,53 +476,137 @@ function draw() {
   }
   ctx.rotate(rocketAngle);
 
-  // Rocket Body
-  ctx.fillStyle = '#e2e8f0';
+  // Rocket Body with gradient
+  const bodyGradient = ctx.createLinearGradient(-10, 0, 10, 0);
+  bodyGradient.addColorStop(0, '#cbd5e1');
+  bodyGradient.addColorStop(0.5, '#f1f5f9');
+  bodyGradient.addColorStop(1, '#cbd5e1');
+  ctx.fillStyle = bodyGradient;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 10, 30, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 12, 32, 0, 0, Math.PI * 2);
   ctx.fill();
+  
+  // Rocket outline
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-  // Fins
+  // Nose cone
   ctx.fillStyle = '#ef4444';
   ctx.beginPath();
-  ctx.moveTo(-10, 20);
-  ctx.lineTo(-20, 40);
-  ctx.lineTo(-10, 30);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(10, 20);
-  ctx.lineTo(20, 40);
-  ctx.lineTo(10, 30);
+  ctx.moveTo(0, -32);
+  ctx.lineTo(-8, -18);
+  ctx.lineTo(8, -18);
+  ctx.closePath();
   ctx.fill();
 
-  // Water Jet (Visuals)
+  // Fins (improved)
+  ctx.fillStyle = '#ef4444';
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 1;
+  
+  ctx.beginPath();
+  ctx.moveTo(-12, 20);
+  ctx.lineTo(-22, 38);
+  ctx.lineTo(-12, 32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(12, 20);
+  ctx.lineTo(22, 38);
+  ctx.lineTo(12, 32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Window
+  ctx.fillStyle = '#3b82f6';
+  ctx.beginPath();
+  ctx.arc(0, -8, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Water Jet (Visuals) - improved
   if (sim.state.phase.includes("Water") && isRunning) {
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
+    ctx.shadowColor = 'rgba(59, 130, 246, 0.8)';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.moveTo(-5, 30);
-    ctx.lineTo(0, 30 + Math.random() * 50 + 20);
-    ctx.lineTo(5, 30);
+    ctx.moveTo(-6, 32);
+    ctx.lineTo(-3, 32 + Math.random() * 60 + 30);
+    ctx.lineTo(0, 32 + Math.random() * 70 + 40);
+    ctx.lineTo(3, 32 + Math.random() * 60 + 30);
+    ctx.lineTo(6, 32);
+    ctx.closePath();
     ctx.fill();
+    ctx.shadowBlur = 0;
 
     // Particles
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = 'rgba(147, 197, 253, 0.6)';
+    for (let i = 0; i < 8; i++) {
+      const offsetX = (Math.random() - 0.5) * 20;
+      const offsetY = 32 + Math.random() * 60;
+      const size = Math.random() * 4 + 1;
+      
+      ctx.fillStyle = `rgba(147, 197, 253, ${0.4 + Math.random() * 0.4})`;
       ctx.beginPath();
-      ctx.arc((Math.random() - 0.5) * 10, 30 + Math.random() * 40, Math.random() * 3, 0, Math.PI * 2);
+      ctx.arc(offsetX, offsetY, size, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // Air Jet (Visuals)
+  // Air Jet (Visuals) - improved
   if (sim.state.phase.includes("Air") && isRunning) {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.moveTo(-5, 30);
-    ctx.lineTo(0, 30 + Math.random() * 30);
-    ctx.lineTo(5, 30);
+    ctx.moveTo(-4, 32);
+    ctx.lineTo(0, 32 + Math.random() * 35 + 15);
+    ctx.lineTo(4, 32);
+    ctx.closePath();
     ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
+  ctx.restore();
+  
+  // Draw velocity vector (for debugging/education)
+  if (isRunning && (sim.state.vx !== 0 || sim.state.vy !== 0)) {
+    ctx.save();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    
+    const vScale = 0.5;
+    const vx = sim.state.vx * vScale;
+    const vy = sim.state.vy * vScale;
+    
+    ctx.beginPath();
+    ctx.moveTo(rocketCanvasX, rocketCanvasY);
+    ctx.lineTo(rocketCanvasX + vx, rocketCanvasY - vy);
+    ctx.stroke();
+    
+    // Arrow head
+    const angle = Math.atan2(-vy, vx);
+    ctx.translate(rocketCanvasX + vx, rocketCanvasY - vy);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-8, -4);
+    ctx.lineTo(-8, 4);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+  }
+  
+  // Scale indicator
+  ctx.save();
+  ctx.fillStyle = '#64748b';
+  ctx.font = '12px Inter';
+  ctx.fillText(`Escala: ${(1/currentScale).toFixed(2)} m/px`, 10, canvas.height - 70);
   ctx.restore();
 }
 
